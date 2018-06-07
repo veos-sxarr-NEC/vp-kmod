@@ -27,19 +27,15 @@
 
 # If kversion isn't defined on the rpmbuild line, define it here.
 %{!?kversion: %define kversion %(uname -r)}
-%define krelease %(uname -r | sed s/\.`arch`//)
 
-Name:		@PACKAGE@
+Name:		%{kmod_name}-kmod
 Version:	@VERSION@
 Release:	@RELEASE@%{?dist}
 Group:		System Environment/Kernel
 License:	GPLv2
-Source0:        @PACKAGE@-@VERSION@.tar.gz
 Summary:	%{kmod_name} kernel module
 Vendor:		NEC Corporation
 Packager:	NEC Corporation
-BuildRequires:	kernel-headers = %{krelease}
-Requires:	kernel = %{krelease}
 
 %description
 VE Virtual to Physical kernel modules.
@@ -49,12 +45,20 @@ Summary:	Headers for building apps that use vp module
 Group:		System Environment/Kernel
 Requires:	%{name} = %{version}-%{release}
 
+#Sources
+Source0:        @PACKAGE@-@VERSION@.tar.gz
+Source10:	kmodtool-%{kmod_name}-e17.sh
+
 %description	devel
 This package contains header required to build applications that
 use vp module
 
+# Magic hidden here.
+%{expand:%(sh %{SOURCE10} rpmtemplate %{kmod_name} %{kversion} "")}
+
 %prep
-%setup -q
+%setup -q -a 0
+echo "override %{kmod_name} * weak-updates/%{kmod_name}" > kmod-%{kmod_name}.conf
 
 %build
 %configure --with-release-id=@RELEASE@
@@ -62,7 +66,14 @@ make %{?_smp_mflags}
 
 %install
 %{__rm} -rf $RPM_BUILD_ROOT
+export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
+export INSTALL_MOD_DIR=extra/
 make install DESTDIR=$RPM_BUILD_ROOT
+%{__install} -d $RPM_BUILD_ROOT%{_sysconfdir}/depmod.d/
+%{__install} kmod-%{kmod_name}.conf $RPM_BUILD_ROOT%{_sysconfdir}/depmod.d/
+
+# Set the module(s) to be executable, so that they will be stripped when packaged.
+find $RPM_BUILD_ROOT -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 
 %clean
 %{__rm} -rf $RPM_BUILD_ROOT
@@ -78,54 +89,8 @@ then
 	/sbin/modprobe -r vp
 fi
 
-%preun
-case "$1" in
-	0)
-	# uninstall
-	/sbin/depmod -a
-	if modinfo ve_drv > /dev/null 2>&1;
-	then
-		/sbin/modprobe -r ve_drv
-	fi
-	if modinfo vp > /dev/null 2>&1;
-	then
-		/sbin/modprobe -r vp
-	fi
-	;;
-	1)
-	# upgrade
-	# do nothing
-	;;
-esac
-
-%post
-/sbin/depmod -a
-case "$1" in
-	1)
-	# install
-	if ! /sbin/modprobe vp
-	then
-	    # We can't abort/rollback RPM transaction when we reach here
-	    # This is just for warning
-	    exit 1
-	fi
-	if modinfo ve_drv > /dev/null 2>&1;
-	then
-	    if ! /sbin/modprobe ve_drv
-	    then
-		# We can't abort/rollback RPM transaction when we reach here
-		# This is just for warning
-		exit 1
-	    fi
-	fi
-	;;
-	2)
-	# upgrade
-	# do nothing
-	;;
-esac
-
 %files
+%{_sysconfdir}/depmod.d/*
 %defattr(-,root,root,-)
 /lib/modules/%{kversion}/extra/*.ko
 %{_sysconfdir}/modprobe.d/*.conf

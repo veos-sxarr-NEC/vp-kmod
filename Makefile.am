@@ -21,7 +21,8 @@
 ACLOCAL_AMFLAGS = -I m4
 include_HEADERS = src/vp.h
 EXTRA_DIST = src/Makefile src/main.c src/compat.c src/compat.h src/vp.h \
-	     src/vp.conf src/commitid.h dracut/vp.conf
+	     src/vp.conf src/commitid.h dracut/vp.conf \
+	     vp-kmod.spec
 bits=11
 
 src/commitid.h:
@@ -39,14 +40,18 @@ all-local: src/vp.ko
 
 install-exec-hook: src/vp.ko
 	$(MKDIR_P) $(DESTDIR)$(KERNEL_MOD)
-	$(INSTALL) $(builddir)/src/vp.ko $(DESTDIR)$(KERNEL_MOD)/
+	$(INSTALL_DATA) $(builddir)/src/vp.ko $(DESTDIR)$(KERNEL_MOD)/
 	$(MKDIR_P) $(DESTDIR)/etc/modprobe.d/
-	$(INSTALL) $(builddir)/src/vp.conf $(DESTDIR)/etc/modprobe.d/
+	$(INSTALL_DATA) $(builddir)/src/vp.conf $(DESTDIR)/etc/modprobe.d/
 	$(MKDIR_P) $(DESTDIR)@prefix@/src/ve_kernel/
-	$(INSTALL) $(builddir)/src/Module.symvers $(DESTDIR)@prefix@/src/ve_kernel/
+	$(INSTALL_DATA) $(builddir)/src/Module.symvers $(DESTDIR)@prefix@/src/ve_kernel/
 	$(MKDIR_P) $(DESTDIR)/etc/dracut.conf.d/
-	$(INSTALL) $(builddir)/dracut/vp.conf $(DESTDIR)/etc/dracut.conf.d/
+	$(INSTALL_DATA) $(builddir)/dracut/vp.conf $(DESTDIR)/etc/dracut.conf.d/
 
 clean-local:
 	rm src/vp.h
 	$(MAKE) -C $(KERNEL_SRC) M=$(abs_top_builddir)/src clean
+
+rpm: dist
+	mkdir -p $(distdir)/rpmbuild/{BUILD,RPMS,SOURCES,SRPMS,SPECS}
+	rpmbuild -ta --clean --define='_topdir $(CURDIR)/$(distdir)/rpmbuild' ${distdir}.tar.gz
