@@ -25,12 +25,12 @@
 # Set install prefix to /usr/local
 %define	_prefix	@prefix@
 
-# Define Kernel version for rpm name here.
-%define REL_KVER	%(echo @KERNEL@ | sed -s "s/\.el.\.x86_64//" | tr - _)
+# If kversion isn't defined on the rpmbuild line, define it here.
+%{!?kversion: %define kversion %(uname -r)}
 
 Name:		%{kmod_name}-kmod
 Version:	@VERSION@
-Release:	%{REL_KVER}@RELEASE@%{?dist}
+Release:	@RELEASE@%{?dist}
 Group:		System Environment/Kernel
 License:	GPLv2
 Summary:	%{kmod_name} kernel module
@@ -46,7 +46,7 @@ Group:		System Environment/Kernel
 Requires:	%{name} = %{version}-%{release}
 
 #Sources
-Source0:	@PACKAGE@-@VERSION@.tar.gz
+Source0:        @PACKAGE@-@VERSION@.tar.gz
 Source10:	kmodtool-%{kmod_name}-e17.sh
 
 %description	devel
@@ -54,14 +54,14 @@ This package contains header required to build applications that
 use vp module
 
 # Magic hidden here.
-%{expand:%(sh %{SOURCE10} rpmtemplate %{kmod_name} @KERNEL@ "")}
+%{expand:%(sh %{SOURCE10} rpmtemplate %{kmod_name} %{kversion} "")}
 
 %prep
 %setup -q -a 0
 echo "override %{kmod_name} * weak-updates/%{kmod_name}" > kmod-%{kmod_name}.conf
 
 %build
-%configure --with-release-id=@RELEASE@ --with-kernel=@KERNEL@
+%configure --with-release-id=@RELEASE@
 make %{?_smp_mflags}
 
 %install
@@ -92,7 +92,7 @@ fi
 %files
 %{_sysconfdir}/depmod.d/*
 %defattr(-,root,root,-)
-/lib/modules/@KERNEL@/extra/*.ko
+/lib/modules/%{kversion}/extra/*.ko
 %{_sysconfdir}/modprobe.d/*.conf
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/*
 
