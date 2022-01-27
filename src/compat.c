@@ -21,11 +21,6 @@
 
 #include <linux/mm.h>
 #include "compat.h"
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#else
-#define KERNEL_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
-#endif
 
 int check_vsyscall_area(uint64_t va)
 {
@@ -57,7 +52,27 @@ int vp_gup(struct task_struct *tsk, struct mm_struct *mm, unsigned long start,
 		gup_flags |= FOLL_WRITE;
 	if (force)
 		gup_flags |= FOLL_FORCE;
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 	return get_user_pages_remote(tsk, mm, start, nr_pages, gup_flags,
 					pages, vmas);
+#else
+	return get_user_pages_remote(tsk, mm, start, nr_pages, gup_flags,
+					pages, vmas,NULL);
 #endif
+
+#endif
+}
+
+
+pud_t * vp_pud_offset( pgd_t *pgd ,unsigned long va )
+{
+        pud_t *pud;
+#if (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)
+        p4d_t *p4d;
+        p4d = p4d_offset(pgd, va);
+        pud = pud_offset(p4d, va);
+#else
+        pud = pud_offset(pgd, va);
+#endif
+        return pud;
 }

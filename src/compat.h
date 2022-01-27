@@ -22,8 +22,21 @@
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 
+#ifndef LINUX_VERSION_CODE
+#include <linux/version.h>
+#else
+#define KERNEL_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
+#endif
+
+#if (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)
+#include <linux/sched/task.h>
+#include <linux/sched/mm.h>
+#endif
+
 int vp_gup(struct task_struct *tsk, struct mm_struct *mm, unsigned long start,
 		unsigned long nr_pages, int write, int force,
 		struct page **pages, struct vm_area_struct **vmas);
 
 int check_vsyscall_area(uint64_t va);
+
+pud_t * vp_pud_offset( pgd_t *pgd ,unsigned long va );

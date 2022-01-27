@@ -316,7 +316,7 @@ static int vp_walk_page(unsigned long va, unsigned long *pa,
 		vp_dbg("invalid pgd\n");
 		return -ESRCH;
 	}
-	pud = pud_offset(pgd, va);
+	pud = vp_pud_offset(pgd, va);
 	if (pud_none(*pud)) {
 		vp_dbg("invalid pud\n");
 		return -ESRCH;
