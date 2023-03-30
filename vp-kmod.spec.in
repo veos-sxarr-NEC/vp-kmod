@@ -26,7 +26,8 @@
 %define	_prefix	@prefix@
 
 # Define Kernel version for rpm name here.
-%define REL_KVER	%(echo @KERNEL@ | sed -s "s/\.el.\.x86_64//" | tr - _)
+%define REL_KVER	%(uname -r | sed -s "s/\.el.*\.x86_64//" | tr - _)
+%define KVER	        %(uname -r)
 
 Name:		%{kmod_name}-kmod
 Version:	@VERSION@
@@ -54,14 +55,14 @@ This package contains header required to build applications that
 use vp module
 
 # Magic hidden here.
-%{expand:%(sh %{SOURCE10} rpmtemplate %{kmod_name} @KERNEL@ "")}
+%{expand:%(sh %{SOURCE10} rpmtemplate %{kmod_name} %{KVER} "")}
 
 %prep
 %setup -q -a 0
 echo "override %{kmod_name} * weak-updates/%{kmod_name}" > kmod-%{kmod_name}.conf
 
 %build
-%configure --with-release-id=@RELEASE@ --with-kernel=@KERNEL@
+%configure --with-release-id=@RELEASE@ --with-kernel=%{KVER}
 make %{?_smp_mflags}
 
 %install
@@ -92,7 +93,7 @@ fi
 %files
 %{_sysconfdir}/depmod.d/*
 %defattr(-,root,root,-)
-/lib/modules/@KERNEL@/extra/*.ko
+/lib/modules/%{KVER}/extra/*.ko
 %{_sysconfdir}/modprobe.d/*.conf
 %config(noreplace) %{_sysconfdir}/dracut.conf.d/*
 
