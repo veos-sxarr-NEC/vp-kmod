@@ -51,6 +51,9 @@ MODULE_VERSION(VERSION);
 MODULE_INFO(release, RELEASE);
 MODULE_INFO(gitcom, COMMITID);
 
+#if (KERNEL_VERSION(5, 0, 0) <= LINUX_VERSION_CODE)
+#define mmap_sem mmap_lock
+#endif
 struct vp_gup_page {
 	struct page *page;	/*!< pointer to the page */
 	struct hlist_node list;	/*!< list */
@@ -102,7 +105,7 @@ int vp_page_release(unsigned long pa, struct page_list *hash_list_head)
 
 	/* Check if page related to this physical address exists */
 	pfn = pa >> PAGE_SHIFT;
-	if (page_is_ram(pfn) && !pfn_valid(pfn)) {
+	if (!pfn_valid(pfn)) {
 		vp_dbg("pfn_valid() returns false (pfn = %lx).", pfn);
 		return -EINVAL;
 	}
@@ -159,7 +162,7 @@ int vp_page_release_blk(uint64_t *pa, int npages, struct page_list *hash_list_he
 		/* avoid duplicates. is probably not needed any more */
 		/* Check if page related to this physical address exists */
 		pfn = pa[i] >> PAGE_SHIFT;
-		if (page_is_ram(pfn) && !pfn_valid(pfn)) {
+		if (!pfn_valid(pfn)) {
 			printk(KERN_ERR "pfn_valid() returns false (pfn = %lx).\n", pfn);
 			return -ENOMEM;
 		}	
@@ -190,6 +193,10 @@ int vp_page_release_blk(uint64_t *pa, int npages, struct page_list *hash_list_he
 				       pfn, i);
 				break;
 			}
+		} else {
+			printk(KERN_ERR "release_blk pfn %lx not found in hash(i=%d)\n",
+			       pfn, i);
+			break;
 		}
 	}
 	return err;
@@ -257,7 +264,7 @@ static int vp_page_to_pa(struct page *page, unsigned long va, unsigned long *pa)
 		return -EINVAL;
 
 	pfn = page_to_pfn(page);
-	if (page_is_ram(pfn) && !pfn_valid(pfn)) {
+	if (!pfn_valid(pfn)) {
 		vp_dbg("pfn_valid() returns false (pfn = %lx).", pfn);
 		return -EINVAL;
 	}
@@ -332,10 +339,6 @@ static int vp_walk_page(unsigned long va, unsigned long *pa,
 		return -ESRCH;
 	}
 	pfn = pte_pfn(*pte);
-	if (page_is_ram(pfn) && !pfn_valid(pfn)) {
-		vp_dbg("pfn_valid() returns false (pfn = %lx).\n", pfn);
-		return -EINVAL;
-	}
 
 	*pa = (pfn << PAGE_SHIFT) + (va & ~PAGE_MASK);
 	pte_unmap(pte);
@@ -597,9 +600,17 @@ int vp_v2p_blk(struct vp_blk *v, int pin_down, struct page_list *hash_list_head)
 			ret |= vp_walk_page(va + offs, (unsigned long *)&pa[i], mm);
 		}
 		if (!ret) {
-			v->pfnmap = 1;
-			vp_dbg("pfnmap block pid(%d) va=%p",
+			/* transfer phys address array to user space */
+			ret = copy_to_user((void __user *)v->paddr, (void *)pa,
+					   v->npages * sizeof(uint64_t));
+			if (ret) {
+			  printk(KERN_ERR "copy_to_user failed!? pid(%d) va=%p\n",
 				 v->pid, (void *)v->vaddr);
+			} else {
+			  v->pfnmap = 1;
+			  vp_dbg("pfnmap block pid(%d) va=%p",
+				 v->pid, (void *)v->vaddr);
+			}
 		}
 		up_read(&mm->mmap_sem);
 		goto out_gup;

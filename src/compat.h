@@ -25,7 +25,9 @@
 #ifndef LINUX_VERSION_CODE
 #include <linux/version.h>
 #else
+#if (KERNEL_VERSION(5, 0, 0) > LINUX_VERSION_CODE)
 #define KERNEL_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
+#endif
 #endif
 
 #if (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE)

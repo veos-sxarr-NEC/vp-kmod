@@ -55,8 +55,11 @@ int vp_gup(struct task_struct *tsk, struct mm_struct *mm, unsigned long start,
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 	return get_user_pages_remote(tsk, mm, start, nr_pages, gup_flags,
 					pages, vmas);
-#else
+#elif (KERNEL_VERSION(5, 0, 0) > LINUX_VERSION_CODE)
 	return get_user_pages_remote(tsk, mm, start, nr_pages, gup_flags,
+					pages, vmas,NULL);
+#else
+	return get_user_pages_remote(mm, start, nr_pages, gup_flags,
 					pages, vmas,NULL);
 #endif
 
