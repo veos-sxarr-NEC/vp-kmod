@@ -83,6 +83,11 @@ static struct miscdevice v2p_dev = {
 #define vp_info(fmt, args...) dev_info(v2p_dev.this_device, "%s "fmt, __FUNCTION__, ## args)
 #define vp_warn(fmt, args...) dev_warn(v2p_dev.this_device, "%s "fmt, __FUNCTION__, ## args)
 
+/* Prototype declaration */
+int vp_v2p_blk(struct vp_blk *v, int pin_down, struct page_list *hash_list_head);
+int vp_init(void);
+void __exit vp_fini(void);
+
 /**
  * @brief Release (decrement reference count) single page which was
  * pinned down by this module
@@ -333,7 +338,11 @@ static int vp_walk_page(unsigned long va, unsigned long *pa,
 		vp_dbg("invalid pmd\n");
 		return -ESRCH;
 	}
+#if (KERNEL_VERSION(6, 5, 0) > LINUX_VERSION_CODE)
 	pte = pte_offset_map(pmd, va);
+#else
+	pte = pte_offset_kernel(pmd, va);
+#endif
 	if (pte_none(*pte)) {
 		vp_dbg("invalid pte\n");
 		return -ESRCH;
@@ -341,8 +350,9 @@ static int vp_walk_page(unsigned long va, unsigned long *pa,
 	pfn = pte_pfn(*pte);
 
 	*pa = (pfn << PAGE_SHIFT) + (va & ~PAGE_MASK);
+#if (KERNEL_VERSION(6, 5, 0) > LINUX_VERSION_CODE)
 	pte_unmap(pte);
-
+#endif
 	return 0;
 }
 

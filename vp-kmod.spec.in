@@ -57,18 +57,32 @@ use vp module
 # Magic hidden here.
 %{expand:%(sh %{SOURCE10} rpmtemplate %{kmod_name} %{KVER} "")}
 
+%if 0%{?rhel} >= 10
+%global __perl /usr/bin/perl
+%endif
+
 %prep
+%if 0%{?rhel} >= 10
+export PERL=%{__perl}
+%endif
 %setup -q -a 0
 echo "override %{kmod_name} * weak-updates/%{kmod_name}" > kmod-%{kmod_name}.conf
 
 %build
 %configure --with-release-id=@RELEASE@ --with-kernel=%{KVER}
+%if 0%{?rhel} >= 10
+export PERL=%{__perl}
+%endif
 make %{?_smp_mflags}
 
 %install
 %{__rm} -rf $RPM_BUILD_ROOT
 export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
 export INSTALL_MOD_DIR=extra/
+%if 0%{?rhel} >= 10
+export PATH=/usr/bin:$PATH
+export PERL=%{__perl}
+%endif
 make install DESTDIR=$RPM_BUILD_ROOT
 %{__install} -d $RPM_BUILD_ROOT%{_sysconfdir}/depmod.d/
 %{__install} kmod-%{kmod_name}.conf $RPM_BUILD_ROOT%{_sysconfdir}/depmod.d/
